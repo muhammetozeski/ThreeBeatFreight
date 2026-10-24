@@ -60,7 +60,10 @@ export async function handle(request,env){
   }
   if(path[2]==='plan'&&path.length===3&&method==='POST'){
    const input=await body(request);let plan;try{plan=validatePlan(input.plan);}catch(error){fail(400,error.message);}room=await pump(db,room);if(room.phase!=='planning'||input.round!==room.round)fail(409,'This round changed. Refresh before planning.');const now=Date.now();const existing=await db.prepare('SELECT plan_json FROM plans WHERE room_id=? AND round=? AND profile_id=?').bind(id,room.round,user.id).first();if(existing&&existing.plan_json!==JSON.stringify(plan))fail(409,'A committed plan is locked until the round resolves.');
-   if(!existing)await db.prepare('INSERT OR IGNORE INTO plans(room_id,round,profile_id,plan_json,committed_at) SELECT id,round,?,?,? FROM rooms WHERE id=? AND round=? AND phase=\'planning\' AND deadline>?').bind(user.id,JSON.stringify(plan),now,id,input.round,now).run();
+   if(!existing)await db.batch([
+    db.prepare('INSERT OR IGNORE INTO plans(room_id,round,profile_id,plan_json,committed_at) SELECT id,round,?,?,? FROM rooms WHERE id=? AND round=? AND phase=\'planning\' AND deadline>CAST((julianday(\'now\')-2440587.5)*86400000 AS INTEGER)').bind(user.id,JSON.stringify(plan),now,id,input.round),
+    db.prepare('UPDATE rooms SET version=version+1 WHERE changes()=1 AND id=? AND round=? AND phase=\'planning\'').bind(id,input.round)
+   ]);
    const saved=await db.prepare('SELECT plan_json FROM plans WHERE room_id=? AND round=? AND profile_id=?').bind(id,input.round,user.id).first();if(!saved||saved.plan_json!==JSON.stringify(plan))fail(409,'The deadline passed or another plan was already committed.');return json({room:await view(db,await member(db,id,user),user)});
   }
   if(path[2]==='replays'&&path.length===3&&method==='GET'){const rows=(await db.prepare('SELECT round,replay_json FROM replays WHERE room_id=? ORDER BY round').bind(id).all()).results;return json({replays:rows.map(row=>JSON.parse(row.replay_json))});}

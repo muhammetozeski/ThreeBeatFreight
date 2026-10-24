@@ -32,3 +32,9 @@ All POST routes require the same Origin as the site. JSON bodies are bounded at 
 A disposable consumer fixture imported production modules and used node:sqlite with the real SQL schema. 38 assertions passed: solo first delivery in two rounds; unchanged input and deterministic replay; budget and state rejection; shove/spill/interception; actual separate test identities; outsider refusal; pre-reveal plan secrecy; commitment lock; two-plan resolution; stale retry refusal; two concurrent deadline pumps producing one version/replay; and recovery reconnect. These are controlled tests, not audience or human enjoyment measurements. The Release C# build completed with zero warnings and zero errors.
 
 Production HTTP verification is recorded separately after deployment. Source contracts do not by themselves prove production transport or browser rendering.
+
+## Deadline admission race correction
+
+A later bounded review identified a gap in the first release: a plan request paused before INSERT retained its old application timestamp. A resolver could read missing plans after the deadline, the paused INSERT could then accept using that old time, and its stale snapshot could label the accepted program as automatic waits. A controlled production-handler/SQLite fixture reproduced status 200 with acceptedButIgnored=true.
+
+Plan admission now checks fresh SQLite time in the INSERT statement. The same D1 batch increments the room version only if a new plan row was inserted (`changes()=1`). Resolution's version comparison therefore also guards the exact admitted plan snapshot. The identical real-clock fixture returns status 409 with acceptedButIgnored=false; the 38 existing controlled service assertions passed. The fixture pauses only consumer database calls; no test hooks were added to the production service.
