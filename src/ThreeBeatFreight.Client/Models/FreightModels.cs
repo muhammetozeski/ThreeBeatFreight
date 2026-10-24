@@ -14,8 +14,11 @@ public sealed class Command { public string Kind {get;set;}="wait"; public strin
 public sealed class User { public string Id {get;set;}=""; public string Alias {get;set;}=""; }
 public sealed class RoomSummary { public string Id {get;set;}=""; public string Phase {get;set;}=""; public string Title {get;set;}=""; }
 public sealed class Room { public string Id {get;set;}=""; public string HostId {get;set;}=""; public string Phase {get;set;}=""; public int Round {get;set;} public int Version {get;set;} public long? Deadline {get;set;} public long ServerNow {get;set;} public Arena Arena {get;set;}=new(); public Match? State {get;set;} public List<User> Members {get;set;}=[]; public List<string> CommittedIds {get;set;}=[]; public List<Command>? OwnPlan {get;set;} public Replay? Replay {get;set;} }
-public sealed class View { public string Origin {get;set;}=""; public List<Arena> Arenas {get;set;}=[]; public List<Contract> Contracts {get;set;}=[]; public User? User {get;set;} public List<RoomSummary> Rooms {get;set;}=[]; public Match? State {get;set;} public Replay? Replay {get;set;} public Room? Room {get;set;} public string? RecoveryKey {get;set;} public string Invite {get;set;}=""; public string ContractId {get;set;}=""; public string Notice {get;set;}=""; public List<Record> Records {get;set;}=[]; public bool ServiceAvailable {get;set;} }
+public sealed class Daily { public string Day {get;set;}=""; public string ContractId {get;set;}=""; }
+public sealed class View { public bool Theatre {get;set;} public List<Replay> AvailableReplays {get;set;}=[]; public bool Practice {get;set;} public Daily Daily {get;set;}=new(); public string Origin {get;set;}=""; public List<Arena> Arenas {get;set;}=[]; public List<Contract> Contracts {get;set;}=[]; public User? User {get;set;} public List<RoomSummary> Rooms {get;set;}=[]; public Match? State {get;set;} public Replay? Replay {get;set;} public Room? Room {get;set;} public string? RecoveryKey {get;set;} public string Invite {get;set;}=""; public string ContractId {get;set;}=""; public string Notice {get;set;}=""; public List<Record> Records {get;set;}=[]; public bool ServiceAvailable {get;set;} }
 public sealed class Record { public string ContractId {get;set;}=""; public int Rounds {get;set;} public int Deliveries {get;set;} public int Falls {get;set;} public string CompletedAt {get;set;}=""; }
+
+
 
 
 
