@@ -4,3 +4,4 @@
 - [Comparable mechanics](Comparables.md): the primary-source comparisons that constrain the game's claims of differentiation.
 
 Use README.md for entry and Walkthrough for dated continuation state.
+- [Rules and room boundary](Rules-and-Service.md): shared engine, hidden commitments, routes and controlled checks.

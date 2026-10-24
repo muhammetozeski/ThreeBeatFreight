@@ -1,0 +1,8 @@
+name = "three-beat-freight"
+pages_build_output_dir = "./artifacts/site"
+compatibility_date = "2026-10-24"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "three-beat-freight"
+database_id = "49498b36-b298-498f-bc31-1efb876650e9"

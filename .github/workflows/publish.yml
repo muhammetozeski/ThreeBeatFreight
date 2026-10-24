@@ -1,0 +1,36 @@
+name: Publish game
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Parse game and service modules
+        run: |
+          node --check game/engine.mjs
+          node --check game/content.mjs
+          node --check server/handler.mjs
+      - name: Publish Blazor and verify shared engine
+        shell: pwsh
+        run: ./scripts/Build.ps1
+      - name: Deploy free Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: pages deploy artifacts/site --project-name three-beat-freight --branch main
