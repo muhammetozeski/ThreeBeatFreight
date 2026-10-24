@@ -34,7 +34,7 @@ export async function handle(request,env){
   const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,'').split('/').filter(Boolean).map(segment=>decodeURIComponent(segment)),method=request.method;
   if(url.origin!==(env.SITE_ORIGIN||'https://three-beat-freight.pages.dev'))fail(404,'Use the current public Three Beat Freight address.');
   if(method==='POST'&&path.join('/')!=='billing/webhook'&&request.headers.get('Origin')!==url.origin)fail(403,'Use this site to submit requests.');
-  if(!env.DB)fail(503,'The room service is not configured. Solo contracts still work.');
+  if(!env.DB)fail(503,'Rooms are unavailable. You can still play solo.');
   const db=env.DB;if(path.join('/')==='billing/webhook'&&method==='POST')return json(await webhook(request,env));await rate(db,request);
   if(Math.random()<0.02){await db.batch([db.prepare('DELETE FROM limits WHERE expires_at<?').bind(Date.now()),db.prepare('DELETE FROM sessions WHERE expires_at<?').bind(Date.now())]);}
   if(path.join('/')==='revenue'&&method==='GET')return json(await revenueStatus(db,env,await account(db,request,false)));
@@ -62,7 +62,7 @@ export async function handle(request,env){
   let room=await member(db,id,user);
   if(path.length===2&&method==='GET')return json({room:await view(db,room,user)});
   if(path[2]==='start'&&path.length===3&&method==='POST'){
-   if(room.host_id!==user.id)fail(403,'Only the host can start.');if(room.phase!=='lobby')fail(409,'This room has already started.');const players=await people(db,id);if(players.length<2)fail(409,'Invite at least one other real courier.');const now=Date.now(),state=createMatch(JSON.parse(room.arena_json),players,{mode:'versus',rounds:6});
+   if(room.host_id!==user.id)fail(403,'Only the host can start.');if(room.phase!=='lobby')fail(409,'This room has already started.');const players=await people(db,id);if(players.length<2)fail(409,'Invite at least one friend.');const now=Date.now(),state=createMatch(JSON.parse(room.arena_json),players,{mode:'versus',rounds:6});
    const changed=await db.prepare('UPDATE rooms SET state_json=?,phase=\'planning\',round=1,version=version+1,deadline=?,updated_at=? WHERE id=? AND phase=\'lobby\' AND (SELECT COUNT(*) FROM members WHERE room_id=?)=?').bind(JSON.stringify(state),now+90000,now,id,id,players.length).run();if(changed.meta.changes!==1)fail(409,'The room changed. Refresh and start again.');return json({room:await view(db,await member(db,id,user),user)});
   }
   if(path[2]==='plan'&&path.length===3&&method==='POST'){
@@ -75,7 +75,7 @@ export async function handle(request,env){
   }
   if(path[2]==='replays'&&path.length===3&&method==='GET'){const rows=(await db.prepare('SELECT round,replay_json FROM replays WHERE room_id=? ORDER BY round').bind(id).all()).results;return json({replays:rows.map(row=>JSON.parse(row.replay_json))});}
   fail(404,'Endpoint not found.');
- }catch(error){if(!error.status)console.error('Room request failed',{type:error.name});return json({error:error.status?error.message:'The service could not finish this request. Your committed plan is retained; refresh safely.'},error.status||500);}
+ }catch(error){if(!error.status)console.error('Room request failed',{type:error.name});return json({error:error.status?error.message:'This action could not finish. Refresh the room to check your plan.'},error.status||500);}
 }
 
 
