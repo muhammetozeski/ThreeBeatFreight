@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+artifacts/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.pfx
+PFX-PAROLA.txt
+*.log
+*.user
+node_modules/
