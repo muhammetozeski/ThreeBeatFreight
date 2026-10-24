@@ -1,3 +1,5 @@
+import {boundedText} from './http.mjs';
+import {revenueStatus,locker,checkout,portal,webhook,configured,advertising} from './revenue.mjs';
 import { arenaById, arenas } from '../game/content.mjs';
 import { createMatch, resolveRound, validatePlan, waitPlan, canonical, validateArena } from '../game/engine.mjs';
 const json=(body,status=200,headers={})=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
@@ -6,7 +8,7 @@ const hash=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SH
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const label=(value,max=24)=>{if(typeof value!=='string'||!value.trim()||value.trim().length>max||/[\u0000-\u001f\u007f]/.test(value))fail(400,`Use 1–${max} characters without control codes.`);return value.trim();};
 const cookie=token=>`freight_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
-async function body(request){if(Number(request.headers.get('content-length')||0)>16000)fail(413,'Request is too large.');const raw=await request.text();if(new TextEncoder().encode(raw).length>16000)fail(413,'Request is too large.');let parsed;try{parsed=JSON.parse(raw||'{}');}catch{fail(400,'Use valid JSON.');}if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))fail(400,'Use a JSON object.');return parsed;}
+async function body(request){if(Number(request.headers.get('content-length')||0)>16000)fail(413,'Request is too large.');const raw=await boundedText(request,16000);if(new TextEncoder().encode(raw).length>16000)fail(413,'Request is too large.');let parsed;try{parsed=JSON.parse(raw||'{}');}catch{fail(400,'Use valid JSON.');}if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))fail(400,'Use a JSON object.');return parsed;}
 async function rate(db,request){const minute=Math.floor(Date.now()/60000),ip=await hash(request.headers.get('CF-Connecting-IP')||'local');const key=ip+':'+minute;const row=await db.prepare('INSERT INTO limits(bucket,hits,expires_at) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET hits=hits+1 RETURNING hits').bind(key,Date.now()+120000).first();if(row.hits>160)fail(429,'Too many requests. Please wait a minute.');}
 async function account(db,request,required=true){const token=request.headers.get('cookie')?.match(/(?:^|;\s*)freight_session=([a-f0-9]{48})/)?.[1];const user=token?await db.prepare('SELECT p.id,p.alias FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.token_hash=? AND s.expires_at>?').bind(await hash(token),Date.now()).first():null;if(!user&&required)fail(401,'Create or recover your courier first.');return user;}
 async function session(db,user){const token=random();await db.prepare('INSERT INTO sessions(token_hash,profile_id,expires_at) VALUES(?,?,?)').bind(await hash(token),user.id,Date.now()+2592000000).run();return token;}
@@ -29,12 +31,14 @@ export async function pump(db,room,now=Date.now()){
 async function view(db,room,user){room=await pump(db,room);const committed=(await db.prepare('SELECT profile_id,plan_json FROM plans WHERE room_id=? AND round=?').bind(room.id,room.round).all()).results;const own=committed.find(row=>row.profile_id===user.id);return{id:room.id,hostId:room.host_id,phase:room.phase,round:room.round,version:room.version,deadline:room.deadline,serverNow:Date.now(),arena:JSON.parse(room.arena_json),state:room.state_json?JSON.parse(room.state_json):null,members:await people(db,room.id),committedIds:committed.map(row=>row.profile_id),ownPlan:own?JSON.parse(own.plan_json):null,replay:room.last_replay?JSON.parse(room.last_replay):null};}
 export async function handle(request,env){
  try{
-  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,'').split('/').filter(Boolean),method=request.method;
-  if(method==='POST'&&request.headers.get('Origin')!==url.origin)fail(403,'Use this site to submit requests.');
+  const url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,'').split('/').filter(Boolean).map(segment=>decodeURIComponent(segment)),method=request.method;
+  if(url.origin!==(env.SITE_ORIGIN||'https://three-beat-freight.pages.dev'))fail(404,'Use the current public Three Beat Freight address.');
+  if(method==='POST'&&path.join('/')!=='billing/webhook'&&request.headers.get('Origin')!==url.origin)fail(403,'Use this site to submit requests.');
   if(!env.DB)fail(503,'The room service is not configured. Solo contracts still work.');
-  const db=env.DB;await rate(db,request);
+  const db=env.DB;if(path.join('/')==='billing/webhook'&&method==='POST')return json(await webhook(request,env));await rate(db,request);
   if(Math.random()<0.02){await db.batch([db.prepare('DELETE FROM limits WHERE expires_at<?').bind(Date.now()),db.prepare('DELETE FROM sessions WHERE expires_at<?').bind(Date.now())]);}
-  if(path.join('/')==='status'&&method==='GET'){return json({user:await account(db,request,false),multiplayer:true,adsEnabled:!!env.ADSENSE_CLIENT,paymentsAvailable:false});}
+  if(path.join('/')==='revenue'&&method==='GET')return json(await revenueStatus(db,env,await account(db,request,false)));
+  if(path.join('/')==='status'&&method==='GET'){return json({user:await account(db,request,false),multiplayer:true,adsEnabled:advertising(env).available,paymentsAvailable:configured(env)});}
   if(path.join('/')==='profile'&&method==='POST'){
    const input=await body(request);if(await account(db,request,false))fail(409,'This browser already has a courier.');
    const alias=label(input.alias),id=random(12),recoveryKey=random(),now=Date.now();await db.prepare('INSERT INTO profiles(id,alias,recovery_hash,created_at) VALUES(?,?,?,?)').bind(id,alias,await hash(recoveryKey),now).run();const token=await session(db,{id});return json({user:{id,alias},recoveryKey},201,{'Set-Cookie':cookie(token)});
@@ -42,6 +46,9 @@ export async function handle(request,env){
   if(path.join('/')==='recover'&&method==='POST'){const input=await body(request);const key=label(input.recoveryKey,64);const user=await db.prepare('SELECT id,alias FROM profiles WHERE recovery_hash=?').bind(await hash(key)).first();if(!user)fail(401,'Recovery key was not recognized.');return json({user},200,{'Set-Cookie':cookie(await session(db,user))});}
   if(path.join('/')==='logout'&&method==='POST'){const token=request.headers.get('cookie')?.match(/freight_session=([a-f0-9]{48})/)?.[1];if(token)await db.prepare('DELETE FROM sessions WHERE token_hash=?').bind(await hash(token)).run();return json({ok:true},200,{'Set-Cookie':'freight_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});}
   const user=await account(db,request);
+  if(path[0]==='locker')return json(await locker(db,env,user,path,method,method==='POST'?await body(request):{}));
+  if(path.join('/')==='billing/checkout'&&method==='POST')return json(await checkout(env,user,url.origin));
+  if(path.join('/')==='billing/portal'&&method==='POST')return json(await portal(env,user,url.origin));
   if(path.join('/')==='rooms'&&method==='GET'){const rows=(await db.prepare('SELECT r.id,r.phase,r.updated_at,r.arena_json FROM rooms r JOIN members m ON m.room_id=r.id WHERE m.profile_id=? ORDER BY r.updated_at DESC LIMIT 30').bind(user.id).all()).results;return json({rooms:rows.map(row=>({id:row.id,phase:row.phase,updatedAt:row.updated_at,title:JSON.parse(row.arena_json).title}))});}
   if(path.join('/')==='rooms'&&method==='POST'){
    const input=await body(request);let arena;if(input.arena){try{arena=validateArena(input.arena);}catch(error){fail(400,error.message);}}else{try{arena=arenaById(input.arenaId||arenas[0].id);}catch{fail(400,'Choose a published arena.');}}
@@ -70,4 +77,9 @@ export async function handle(request,env){
   fail(404,'Endpoint not found.');
  }catch(error){if(!error.status)console.error('Room request failed',{type:error.name});return json({error:error.status?error.message:'The service could not finish this request. Your committed plan is retained; refresh safely.'},error.status||500);}
 }
+
+
+
+
+
 

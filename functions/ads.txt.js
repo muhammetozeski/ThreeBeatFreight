@@ -1,0 +1,1 @@
+export function onRequestGet({env}){const id=/^ca-pub-\d{16}$/.test(env.ADSENSE_CLIENT||'')?env.ADSENSE_CLIENT.slice(3):null;return new Response(id?`google.com, ${id}, DIRECT, f08c47fec0942fa0\n`:'',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=300'}});}
