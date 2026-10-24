@@ -221,7 +221,15 @@ export function validateState(state) {
   for (const crate of state.crates) { integer(crate.x, 0, state.board.tiles[0].length - 1, 'Cargo column'); integer(crate.y, 0, state.board.tiles.length - 1, 'Cargo row'); if (tile(state.board, crate.x, crate.y) === '#' || floor.has(cell(crate)) || typeof crate.id !== 'string' || !/^crate-[1-9][0-9]{0,3}$/.test(crate.id) || tile(state.board, crate.x, crate.y) === 'x' || cargoIds.has(crate.id)) throw new Error('Saved cargo positions or identities are inconsistent.'); cargoIds.add(crate.id); floor.add(cell(crate)); }
   integer(state.nextCrate, 1, 1000, 'Cargo sequence');
   if ([...cargoIds].some(id => Number(id.slice(6)) >= state.nextCrate)) throw new Error('Saved cargo sequence is inconsistent.'); integer(state.sourceCursor, 0, 10000, 'Cargo source position');
+  fields(state.objective, ['deliveries','maximumFalls'], 'Saved objective');
   integer(state.objective?.deliveries, 1, 12, 'Delivery target'); integer(state.objective?.maximumFalls, 0, 50, 'Fall limit');
+  if(state.phase==='planning'&&state.result!==null)throw new Error('An unfinished match cannot contain a final result.');
+  if(state.phase==='finished'){
+    fields(state.result,['winners','scores','rounds'],'Saved result');
+    const result=state.result;if(!Array.isArray(result.winners)||new Set(result.winners).size!==result.winners.length||result.winners.some(id=>!state.players.some(p=>p.id===id))||result.rounds!==state.round||!Array.isArray(result.scores)||canonical(result.scores)!==canonical(state.players.map(p=>({id:p.id,score:p.score,falls:p.falls}))))throw new Error('Saved result does not match its couriers.');
+    const highest=Math.max(...state.players.map(p=>p.score)),solo=state.players[0],expected=state.mode==='solo'?(solo.score>=state.objective.deliveries&&solo.falls<=state.objective.maximumFalls?[solo.id]:[]):state.players.filter(p=>p.score===highest).map(p=>p.id);
+    if(canonical(result.winners)!==canonical(expected))throw new Error('Saved winners do not match the final score.');
+  }
   return state;
 }
 
@@ -230,4 +238,5 @@ export function preview(state, playerId, plan) {
   const actor = state.players.find(player => player.id === playerId); if (!actor) throw new Error('Choose your actual courier.');
   return resolveRound(state, { [playerId]: plan }).replay;
 }
+
 
