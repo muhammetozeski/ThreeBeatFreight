@@ -2,7 +2,7 @@ import{boundedText}from'./http.mjs';
 import{validateArena}from'../game/engine.mjs';
 const problem=(status,message)=>{throw Object.assign(new Error(message),{status});};
 export const configured=env=>!!env.POLAR_ACCESS_TOKEN&&/^[a-f0-9-]{36}$/i.test(env.POLAR_PRODUCT_ID||'')&&!!env.POLAR_WEBHOOK_SECRET&&['sandbox','production'].includes(env.POLAR_MODE);
-export const advertising=env=>({available:/^ca-pub-\d{16}$/.test(env.ADSENSE_CLIENT||'')&&/^\d{10}$/.test(env.ADSENSE_SLOT||''),client:/^ca-pub-\d{16}$/.test(env.ADSENSE_CLIENT||'')?env.ADSENSE_CLIENT:null,slot:/^\d{10}$/.test(env.ADSENSE_SLOT||'')?env.ADSENSE_SLOT:null});
+export const advertising=env=>({available:env.ADSENSE_CONSENT_READY==='true'&&/^ca-pub-\d{16}$/.test(env.ADSENSE_CLIENT||'')&&/^\d{10}$/.test(env.ADSENSE_SLOT||''),client:/^ca-pub-\d{16}$/.test(env.ADSENSE_CLIENT||'')?env.ADSENSE_CLIENT:null,slot:/^\d{10}$/.test(env.ADSENSE_SLOT||'')?env.ADSENSE_SLOT:null});
 async function polar(env,path,method='GET',body){const base=env.POLAR_MODE==='sandbox'?'https://sandbox-api.polar.sh':'https://api.polar.sh';const response=await fetch(base+'/v1/'+path,{method,headers:{Authorization:'Bearer '+env.POLAR_ACCESS_TOKEN,'Content-Type':'application/json','Polar-Version':'2026-10'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(8000)});if(response.status===404)return null;if(!response.ok)problem(503,'Membership could not be checked with Polar. Existing yards remain readable; additional paid slots are unavailable until it recovers.');return response.json();}
 export async function capacity(env,user){
  if(!configured(env)||!user)return{premium:false,limit:3,used:0};
@@ -33,6 +33,7 @@ export async function verifyPolar(request,raw,secret,now=Date.now()){
 export async function webhook(request,env){if(!configured(env))problem(503,'Billing is not configured.');const raw=await boundedText(request,65536);if(new TextEncoder().encode(raw).length>65536)problem(413,'Webhook is too large.');const id=await verifyPolar(request,raw,env.POLAR_WEBHOOK_SECRET);let event;try{event=JSON.parse(raw);}catch{problem(400,'Invalid webhook JSON.');}if(typeof event.type!=='string'||event.type.length>100)problem(400,'Invalid webhook event.');if(event.api_version&&event.api_version!=='2026-10')problem(400,'Unsupported webhook API version.');await env.DB.prepare('INSERT OR IGNORE INTO billing_events(event_id,kind,received_at) VALUES(?,?,?)').bind(id,event.type,Date.now()).run();return{ok:true};
  // No access is granted from webhook metadata or its arrival order. Each paid-capacity check reads the current authenticated provider customer state.
 }
+
 
 
 

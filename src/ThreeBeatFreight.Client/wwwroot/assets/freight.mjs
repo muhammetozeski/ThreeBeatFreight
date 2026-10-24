@@ -1,8 +1,9 @@
+import {allowsAdvertising} from './ad-consent.mjs';
 import {localRivalPlan} from './rival.mjs';
 import {arenas,contracts,arenaById,contractById,dailyContract,engineVersion} from './content.mjs';
 import {createMatch,resolveRound,preview,validateArena,validatePlan,canonical,validateState} from './engine.mjs';
 const key='three-beat-freight-v1';
-let adsLoaded=false;
+let adsLoaded=false,adsListening=false;
 let data={builtInIds:arenas.map(a=>a.id),cloudArenas:[],revenue:{ads:{available:false},billing:{available:false,provider:"polar",mode:"sandbox"},locker:{limit:3,used:0,premium:false}},origin:location.origin,arenas:structuredClone(arenas),contracts:structuredClone(contracts),user:null,rooms:[],state:null,replay:null,room:null,practice:false,theatre:false,availableReplays:[],daily:dailyContract(),recoveryKey:null,invite:new URL(location.href).searchParams.get('room')||'',contractId:'',notice:'',records:[],serviceAvailable:false};
 const view=()=>structuredClone(data);
 function persist(){localStorage.setItem(key,JSON.stringify({format:1,state:data.room?null:data.state,replay:data.room?null:data.replay,contractId:data.contractId,practice:data.practice,history:data.availableReplays,records:data.records,custom:data.arenas.filter(arena=>!arenas.some(base=>base.id===arena.id))}));}
@@ -46,4 +47,15 @@ export async function saveCloud(id){if(!data.user)throw new Error('Create a free
 export async function loadCloud(id){const result=await api('locker/'+encodeURIComponent(id));saveArena(result.arena);return refreshLocker();}
 export async function deleteCloud(id){await api('locker/'+encodeURIComponent(id)+'/delete','POST');return refreshLocker();}
 export async function openBilling(kind){if(!['checkout','portal'].includes(kind))throw new Error('Choose checkout or portal.');const result=await api('billing/'+kind,'POST');location.assign(result.url);}
-export async function enableAds(){if(data.room||data.state)throw new Error('Optional advertising is available only on the public dispatch screen.');const config=(await api('revenue')).ads;if(!config.available)throw new Error('No advertising publisher is configured.');const holder=document.getElementById('optional-ad');if(!holder)throw new Error('Open the public dispatch screen first.');if(adsLoaded)return;const ad=document.createElement('ins');ad.className='adsbygoogle';ad.style.display='block';ad.dataset.adClient=config.client;ad.dataset.adSlot=config.slot;ad.dataset.adFormat='auto';ad.dataset.fullWidthResponsive='true';holder.append(ad);const script=document.createElement('script');script.async=true;script.crossOrigin='anonymous';script.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(config.client);script.onload=()=>{(window.adsbygoogle=window.adsbygoogle||[]).push({});};script.onerror=()=>{holder.textContent='Advertising could not load. The game remains available.';};document.head.append(script);adsLoaded=true;}
+export async function enableAds(){
+ if(data.room||data.state)throw new Error('Optional advertising is available only on the public dispatch screen.');
+ const config=(await api('revenue')).ads;if(!config.available)throw new Error('The publisher and certified consent setup are not enabled.');
+ if(typeof window.__tcfapi!=='function')throw new Error('The configured consent manager is not installed or ready. Advertising stays off.');
+ const holder=document.getElementById('optional-ad');if(!holder)throw new Error('Open the public dispatch screen first.');if(adsListening||adsLoaded)return;adsListening=true;holder.textContent='Waiting for the installed privacy manager. The game works without advertising.';
+ window.__tcfapi('addEventListener',2,(tcData,success)=>{
+  if(!allowsAdvertising(tcData,success)){if(adsLoaded)location.reload();return;}
+  if(adsLoaded||data.room||data.state)return;holder.textContent='';
+  const ad=document.createElement('ins');ad.className='adsbygoogle';ad.style.display='block';ad.dataset.adClient=config.client;ad.dataset.adSlot=config.slot;ad.dataset.adFormat='auto';ad.dataset.fullWidthResponsive='true';holder.append(ad);
+  const script=document.createElement('script');script.async=true;script.crossOrigin='anonymous';script.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(config.client);script.onload=()=>{(window.adsbygoogle=window.adsbygoogle||[]).push({});};script.onerror=()=>{holder.textContent='Advertising could not load. The game remains available.';};document.head.append(script);adsLoaded=true;
+ });
+}

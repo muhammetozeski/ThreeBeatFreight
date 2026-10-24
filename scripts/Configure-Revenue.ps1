@@ -16,8 +16,8 @@ $settings=@{};$newPublic=$null;$oldPublic=$null
 $publicPath=Join-Path $projectRoot 'docs/revenue-public.json'
 if(Test-Path -LiteralPath $publicPath){$oldPublic=Get-Content -Raw -LiteralPath $publicPath|ConvertFrom-Json}
 switch($Action){
- 'DisableAds'{$settings.ADSENSE_CLIENT=$null;$settings.ADSENSE_SLOT=$null}
- 'SetAds'{if($AdSenseClient -notmatch '^ca-pub-\d{16}$' -or $AdSenseSlot -notmatch '^\d{10}$'){throw 'Provide a real ca-pub- publisher ID and ten-digit ad slot.'};$settings.ADSENSE_CLIENT=@{type='secret_text';value=$AdSenseClient};$settings.ADSENSE_SLOT=@{type='secret_text';value=$AdSenseSlot}}
+ 'DisableAds'{$settings.ADSENSE_CLIENT=$null;$settings.ADSENSE_SLOT=$null;$settings.ADSENSE_CONSENT_READY=$null}
+ 'SetAds'{if($AdSenseClient -notmatch '^ca-pub-\d{16}$' -or $AdSenseSlot -notmatch '^\d{10}$'){throw 'Provide a real ca-pub- publisher ID and ten-digit ad slot.'};$settings.ADSENSE_CLIENT=@{type='secret_text';value=$AdSenseClient};$settings.ADSENSE_SLOT=@{type='secret_text';value=$AdSenseSlot};$settings.ADSENSE_CONSENT_READY=@{type='secret_text';value='false'}}
  'DisablePolar'{foreach($name in @('POLAR_ACCESS_TOKEN','POLAR_PRODUCT_ID','POLAR_WEBHOOK_SECRET','POLAR_MODE')){$settings[$name]=$null}}
  'EnablePolar'{
   $polarToken=Read-SecretValue 'POLAR_ACCESS_TOKEN';$base=if($BillingMode -eq 'sandbox'){'https://sandbox-api.polar.sh/v1'}else{'https://api.polar.sh/v1'};$headers=@{Authorization="Bearer $polarToken";'Polar-Version'='2026-10'}
@@ -34,3 +34,4 @@ $patched=Send-Json "https://api.cloudflare.com/client/v4/accounts/$($hosting.acc
 if(!$patched.success){throw 'Cloudflare did not confirm the configuration.'}
 if($newPublic){$newPublic|ConvertTo-Json|Set-Content -LiteralPath $publicPath -Encoding utf8;if($oldPublic -and $oldPublic.mode -eq $BillingMode -and $oldPublic.webhookId -and $oldPublic.webhookId -ne $newPublic.webhookId){$null=Send-Json "$base/webhooks/endpoints/$($oldPublic.webhookId)" 'Patch' $headers @{enabled=$false}}}
 Write-Output "Configured $Action. Redeploy the current main branch to apply it. No credential was written to the repository."
+
