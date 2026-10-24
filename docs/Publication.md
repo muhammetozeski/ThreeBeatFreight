@@ -11,3 +11,13 @@ Those HTTP checks did not click through a graphical browser, measure a twenty-se
 The initial live check compared exact remote bytes with committed Git blobs. Comparing against a Windows working copy instead would mix Git line-ending conversion into the test. `.gitattributes` fixes new text output to LF; the build also verifies source/output hashes within the same publication environment.
 
 See [Cloudflare Pages configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/) for the D1 binding and [deployment API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/create/) for direct-upload behavior.
+
+## Expanded live acceptance
+
+Release `b9dc4ce` ([workflow 40121457931](https://github.com/muhammetozeski/ThreeBeatFreight/actions/runs/40121457931)) passed 24 focused actual HTTPS checks for the free private locker and unavailable revenue boundary. They covered three free slots, fourth-slot refusal, overwriting an existing yard, encoded arena IDs, other-courier refusal, read/delete, current usage, unavailable checkout/portal/webhook, empty ads.txt, published content and explicit appearance assets. The two QA couriers and their cloud yards were removed afterward.
+
+The separate deadline fix `c823dcc` ([workflow 40120717526](https://github.com/muhammetozeski/ThreeBeatFreight/actions/runs/40120717526)) passed 14 focused real D1 checks. Insertion increased room version, repeating the same committed plan did not, and three near-deadline attempts returned 200/409/409; the accepted program appeared exactly in the resolved replay and not in automatic waits. Its QA room/profiles were removed. A controlled paused-snapshot fixture also checked accepted-before-deadline inclusion.
+
+An independent read-only native-browser acceptance reported dark rendering with 125 actual text samples, zero contrast failures and zero unparsed colors. No game button was clicked in that read. Actual game-module play and network-service checks provide the other functional evidence; this is not a human enjoyment test.
+
+The three earlier deployments without a canonical-origin API check were retired through the provider. Their exact deployment IDs, committed revisions and observed API 404 responses are preserved in `retired-deployments.json`. Current immutable deployment aliases also return API 404 by the origin gate, while the canonical API returns 200. Source/Git history and the dedicated D1 database were preserved. A successful control-plane retirement and its propagated edge response are separate observations; the HTTP checks were completed after the retire operation.

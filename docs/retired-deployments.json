@@ -1,0 +1,23 @@
+[
+  {
+    "deploymentId": "f074a534-7e3a-4064-b1b8-44656093a59e",
+    "url": "https://f074a534.three-beat-freight.pages.dev",
+    "commit": "c823dcc74d4d2f25d2d0d684d1ff2c82ac58de11",
+    "apiStatus": 404,
+    "confirmedAt": "2026-10-24T18:44:29.042Z"
+  },
+  {
+    "deploymentId": "5da6a874-de5c-4838-924b-8fe97061ffae",
+    "url": "https://5da6a874.three-beat-freight.pages.dev",
+    "commit": "4ca0c8d50a1e8d5ff6eebdfe57ac2b8b5c9943b2",
+    "apiStatus": 404,
+    "confirmedAt": "2026-10-24T18:44:29.376Z"
+  },
+  {
+    "deploymentId": "5b28c1cf-95fd-49e3-900f-cd20f7defd10",
+    "url": "https://5b28c1cf.three-beat-freight.pages.dev",
+    "commit": "a779a21ab487335c34317b8ef4e8049b79e64445",
+    "apiStatus": 404,
+    "confirmedAt": "2026-10-24T18:44:29.800Z"
+  }
+]
